@@ -7,6 +7,7 @@ import (
 
 func main() {
 	http.HandleFunc("/healthz", func(http.ResponseWriter, *http.Request) {})
-
+	http.HandleFunc("/ping", ping)
+	http.HandleFunc("/mping", mping)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
