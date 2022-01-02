@@ -2,8 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
-	"io"
 	"log"
 	"net"
 	"net/http"
@@ -47,20 +45,18 @@ func ping(w http.ResponseWriter, r *http.Request) {
 	jsonify(w, hostInfo, http.StatusOK)
 }
 
-func mping(w http.ResponseWriter, r *http.Request) {
+// svcCheck verifies k8s service
+func svcCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "POST method is required", http.StatusBadRequest)
+		http.Error(w, "POST method is required", http.StatusMethodNotAllowed)
 		return
 	}
+}
 
-	b, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Cannot read request body", http.StatusInternalServerError)
+// directCheck verifies pod-to-pod requests
+func directCheck(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST method is required", http.StatusMethodNotAllowed)
 		return
 	}
-
-	for k, v := range r.Header {
-		fmt.Fprintf(w, "%s: %s\n", k, v)
-	}
-	fmt.Fprint(w, string(b))
 }
