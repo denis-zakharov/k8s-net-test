@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	http.HandleFunc("/healthz", func(http.ResponseWriter, *http.Request) {})
+	http.HandleFunc("/healthz", healthz)
 	http.HandleFunc("/ping", ping)
 	http.HandleFunc("/svc", svcCheck)
 	http.HandleFunc("/direct", directCheck)

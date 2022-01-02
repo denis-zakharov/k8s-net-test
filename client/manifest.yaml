@@ -16,6 +16,7 @@ spec:
       containers:
         - name: pinger
           image: zadenis/pinger:0.1
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
               protocol: TCP

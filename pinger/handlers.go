@@ -41,6 +41,11 @@ func jsonify(w http.ResponseWriter, payload []byte, status int) {
 	w.Write(payload)
 }
 
+func healthz(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Header().Add("Content-Type", "text/plain; charset=UTF-8")
+}
+
 func ping(w http.ResponseWriter, r *http.Request) {
 	jsonify(w, hostInfo, http.StatusOK)
 }
