@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -56,6 +57,17 @@ func svcCheck(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "POST method is required", http.StatusMethodNotAllowed)
 		return
 	}
+
+	var payload svcPayload
+	err := json.NewDecoder(r.Body).Decode(&payload)
+	if err != nil {
+		http.Error(w, "Decode Failed", http.StatusBadRequest)
+		return
+	}
+
+	fmt.Printf("%#+v\n", payload)
+
+	jsonify(w, []byte{}, http.StatusAccepted)
 }
 
 // directCheck verifies pod-to-pod requests
@@ -64,4 +76,15 @@ func directCheck(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "POST method is required", http.StatusMethodNotAllowed)
 		return
 	}
+
+	var payload []directPayloadItem
+	err := json.NewDecoder(r.Body).Decode(&payload)
+	if err != nil {
+		http.Error(w, "Decode Failed", http.StatusBadRequest)
+		return
+	}
+
+	fmt.Printf("%#+v\n", payload)
+
+	jsonify(w, []byte{}, http.StatusAccepted)
 }
