@@ -82,34 +82,31 @@ func svcCheck(w http.ResponseWriter, r *http.Request) {
 		for i := 0; i < count; i++ {
 			queue <- v
 		}
+		close(queue)
 	}()
 
+	var wg sync.WaitGroup
+	wg.Add(reqBound)
 	for i := 0; i < reqBound; i++ {
 		go func() {
 			pingSvc(svcUrl, queue, errc)
-		}()
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(count)
-	var mu sync.Mutex
-	errCount := 0
-
-	for i := 0; i < count; i++ {
-		go func() {
-			err := <-errc
-			if err != nil {
-				mu.Lock()
-				errCount++
-				mu.Unlock()
-				log.Printf("[SVC ERROR] %s", err.Error())
-			}
 			wg.Done()
 		}()
 	}
 
-	wg.Wait()
-	close(queue)
+	go func() {
+		wg.Wait()
+		close(errc)
+	}()
+
+	errCount := 0
+	for e := range errc {
+		if e != nil {
+			errCount++
+			log.Printf("[SVC ERROR] %s", err.Error())
+		}
+	}
+
 	respPayload := svcRespPayload{
 		SrcHost: hostName,
 		Errors:  errCount,
