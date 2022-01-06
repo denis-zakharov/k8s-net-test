@@ -40,22 +40,29 @@ func extractPort(addr net.Addr) (int, error) {
 	return port, nil
 }
 
-func TestDirectCheckHandler(t *testing.T) {
+func newRespServer() (srv *httptest.Server, port int, err error) {
 	l, err := newLocalListener()
 	if err != nil {
-		t.Fatal(err.Error())
+		return nil, -1, err
 	}
-	port, err := extractPort(l.Addr())
+	port, err = extractPort(l.Addr())
 	if err != nil {
-		t.Fatal(err.Error())
+		return nil, -1, err
 	}
-	respTS := &httptest.Server{
+	srv = &httptest.Server{
 		Listener: l,
 		Config:   &http.Server{Handler: http.HandlerFunc(ping)},
 	}
-	respTS.Start()
-	defer respTS.Close()
+	srv.Start()
+	return srv, port, nil
+}
 
+func TestDirectCheckHandler(t *testing.T) {
+	respTS, port, err := newRespServer()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	defer respTS.Close()
 	ts := httptest.NewServer(http.HandlerFunc(directCheckWrapper(port)))
 	defer ts.Close()
 
@@ -95,5 +102,49 @@ func TestDirectCheckHandler(t *testing.T) {
 	if len(respPayload) != 1 {
 		t.Errorf("one address should fail: %v", respPayload)
 	}
+}
 
+func TestSvcHandler(t *testing.T) {
+	respTS, _, err := newRespServer()
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	defer respTS.Close()
+	ts := httptest.NewServer(http.HandlerFunc(svcCheck))
+	defer ts.Close()
+
+	payload := svcReqPayload{respTS.URL, 100}
+	b, err := json.Marshal(&payload)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, ts.URL, bytes.NewBuffer(b))
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	res, err := ts.Client().Do(req)
+	if err != nil {
+		t.Error(err.Error())
+	}
+
+	// should be zero errors
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	res.Body.Close()
+	var respPayload svcRespPayload
+	err = json.Unmarshal(body, &respPayload)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if respPayload.Errors != 0 {
+		t.Errorf("should be no errors: %v", respPayload)
+	}
 }
