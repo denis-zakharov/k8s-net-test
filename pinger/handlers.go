@@ -10,8 +10,6 @@ import (
 	"sync"
 )
 
-const pingBound = 1000
-
 var (
 	hostName string
 	hostInfo []byte
@@ -76,7 +74,7 @@ func svcCheck(w http.ResponseWriter, r *http.Request) {
 	svcUrl := reqPayload.SvcURL
 	count := reqPayload.Count
 
-	queue := make(chan struct{}, pingBound)
+	queue := make(chan struct{}, reqBound)
 	errc := make(chan error)
 
 	go func() {
@@ -86,7 +84,7 @@ func svcCheck(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	for i := 0; i < pingBound; i++ {
+	for i := 0; i < reqBound; i++ {
 		go func() {
 			pingSvc(svcUrl, queue, errc)
 		}()
@@ -104,6 +102,7 @@ func svcCheck(w http.ResponseWriter, r *http.Request) {
 				mu.Lock()
 				errCount++
 				mu.Unlock()
+				log.Printf("[SVC ERROR] %s", err.Error())
 			}
 			wg.Done()
 		}()
@@ -111,7 +110,6 @@ func svcCheck(w http.ResponseWriter, r *http.Request) {
 
 	wg.Wait()
 	close(queue)
-	close(errc)
 	respPayload := svcRespPayload{
 		SrcHost: hostName,
 		Errors:  errCount,
@@ -139,8 +137,54 @@ func directCheck(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Decode Failed", http.StatusBadRequest)
 		return
 	}
+	r.Body.Close()
 
-	fmt.Printf("%#+v\n", payload)
+	queue := make(chan directRespPayloadItem, reqBound)
+	count := 0
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 
-	jsonify(w, []byte{}, http.StatusAccepted)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for _, reqItem := range payload {
+			for _, a := range reqItem.Addrs {
+				v := directRespPayloadItem{
+					SrcHost: hostName,
+					DstHost: reqItem.Hostname,
+					Addr:    a,
+				}
+				wg.Add(1)
+				queue <- v
+				mu.Lock()
+				count++
+				mu.Unlock()
+			}
+		}
+	}()
+
+	resc := make(chan directRespPayloadItem)
+	for i := 0; i < reqBound; i++ {
+		go pingDirect(queue, resc)
+	}
+
+	directRespPayload := make([]directRespPayloadItem, 0)
+	go func() {
+		res := <-resc
+		if res.Error != "" {
+			directRespPayload = append(directRespPayload, res)
+		}
+		wg.Done()
+	}()
+
+	wg.Wait()
+	close(queue)
+
+	b, err := json.Marshal(directRespPayload)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Cannot serialize response: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	jsonify(w, b, http.StatusAccepted)
 }

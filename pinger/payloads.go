@@ -14,3 +14,10 @@ type directReqPayloadItem struct {
 	Hostname string   `json:"hostname"`
 	Addrs    []string `json:"addrs"`
 }
+
+type directRespPayloadItem struct {
+	SrcHost string `json:"srcHost"`
+	DstHost string `json:"dstHost"`
+	Addr    string `json:"addr"`
+	Error   string `json:"error"`
+}
