@@ -10,7 +10,7 @@ import (
 const reqBound = 1000
 
 var hc = http.Client{
-	Timeout: 5 * time.Second,
+	Timeout: 1 * time.Second,
 }
 
 func doGet(url string) error {
@@ -31,15 +31,15 @@ func pingSvc(url string, queue <-chan struct{}, errc chan<- error) {
 	}
 }
 
-func pingDirect(queue <-chan directRespPayloadItem, resc chan<- directRespPayloadItem) {
+func pingDirect(queue <-chan directRespPayloadItem, resc chan<- directRespPayloadItem, port int) {
 	for v := range queue {
 		a := v.Addr
 		var url string
 		if strings.Contains(a, ":") {
 			// ipv6
-			url = fmt.Sprintf("http://[%s]:8080/ping", a)
+			url = fmt.Sprintf("http://[%s]:%d/ping", a, port)
 		} else {
-			url = fmt.Sprintf("http://%s:8080/ping", a)
+			url = fmt.Sprintf("http://%s:%d/ping", a, port)
 		}
 
 		err := doGet(url)

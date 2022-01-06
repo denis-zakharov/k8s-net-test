@@ -124,8 +124,14 @@ func svcCheck(w http.ResponseWriter, r *http.Request) {
 	jsonify(w, b, http.StatusAccepted)
 }
 
+func directCheckWrapper(port int) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		directCheck(w, r, port)
+	}
+}
+
 // directCheck verifies pod-to-pod requests
-func directCheck(w http.ResponseWriter, r *http.Request) {
+func directCheck(w http.ResponseWriter, r *http.Request, port int) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST method is required", http.StatusMethodNotAllowed)
 		return
@@ -165,7 +171,7 @@ func directCheck(w http.ResponseWriter, r *http.Request) {
 
 	resc := make(chan directRespPayloadItem)
 	for i := 0; i < reqBound; i++ {
-		go pingDirect(queue, resc)
+		go pingDirect(queue, resc, port)
 	}
 
 	directRespPayload := make([]directRespPayloadItem, 0)
