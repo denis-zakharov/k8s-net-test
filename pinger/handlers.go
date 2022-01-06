@@ -7,9 +7,15 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sync"
 )
 
-var hostInfo []byte
+const pingBound = 1000
+
+var (
+	hostName string
+	hostInfo []byte
+)
 
 func init() {
 	addrs, err := net.InterfaceAddrs()
@@ -25,7 +31,7 @@ func init() {
 		}
 	}
 	instance := make(map[string][]string, 1)
-	hostName, err := os.Hostname()
+	hostName, err = os.Hostname()
 	if err != nil {
 		log.Fatal("Cannot resolve hostname")
 	}
@@ -37,14 +43,15 @@ func init() {
 }
 
 func jsonify(w http.ResponseWriter, payload []byte, status int) {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	w.Header().Add("Content-Type", "application/json")
 	w.Write(payload)
 }
 
 func healthz(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
-	w.Header().Add("Content-Type", "text/plain; charset=UTF-8")
+	w.Write([]byte("OK"))
 }
 
 func ping(w http.ResponseWriter, r *http.Request) {
@@ -58,16 +65,65 @@ func svcCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var payload svcPayload
-	err := json.NewDecoder(r.Body).Decode(&payload)
+	var reqPayload svcReqPayload
+	err := json.NewDecoder(r.Body).Decode(&reqPayload)
 	if err != nil {
 		http.Error(w, "Decode Failed", http.StatusBadRequest)
 		return
 	}
+	r.Body.Close()
 
-	fmt.Printf("%#+v\n", payload)
+	svcUrl := reqPayload.SvcURL
+	count := reqPayload.Count
 
-	jsonify(w, []byte{}, http.StatusAccepted)
+	queue := make(chan struct{}, pingBound)
+	errc := make(chan error)
+
+	go func() {
+		v := struct{}{}
+		for i := 0; i < count; i++ {
+			queue <- v
+		}
+	}()
+
+	for i := 0; i < pingBound; i++ {
+		go func() {
+			pingSvc(svcUrl, queue, errc)
+		}()
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(count)
+	var mu sync.Mutex
+	errCount := 0
+
+	for i := 0; i < count; i++ {
+		go func() {
+			err := <-errc
+			if err != nil {
+				mu.Lock()
+				errCount++
+				mu.Unlock()
+			}
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+	close(queue)
+	close(errc)
+	respPayload := svcRespPayload{
+		SrcHost: hostName,
+		Errors:  errCount,
+	}
+
+	b, err := json.Marshal(respPayload)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Cannot serialize response: %s", err.Error()), http.StatusInternalServerError)
+		return
+	}
+
+	jsonify(w, b, http.StatusAccepted)
 }
 
 // directCheck verifies pod-to-pod requests
@@ -77,7 +133,7 @@ func directCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var payload []directPayloadItem
+	var payload []directReqPayloadItem
 	err := json.NewDecoder(r.Body).Decode(&payload)
 	if err != nil {
 		http.Error(w, "Decode Failed", http.StatusBadRequest)
