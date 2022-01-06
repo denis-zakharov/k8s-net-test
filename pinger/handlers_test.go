@@ -16,11 +16,10 @@ import (
 )
 
 func newLocalListener() (net.Listener, error) {
-	l, err := net.Listen("tcp", "127.0.0.1:0")
+	l, err := net.Listen("tcp", ":0")
 	if err != nil {
-		if l, err = net.Listen("tcp6", "[::1]:0"); err != nil {
-			return nil, fmt.Errorf("httptest: failed to listen on a port: %v", err)
-		}
+		return nil, fmt.Errorf("httptest: failed to listen on a port: %v", err)
+
 	}
 	return l, nil
 }
@@ -61,11 +60,11 @@ func TestDirectCheckHandler(t *testing.T) {
 	defer ts.Close()
 
 	payload := []directReqPayloadItem{
-		{"localhost", []string{"127.0.0.1", "::1"}},
+		{"localhost", []string{"127.0.0.1", "::1", "f:a:i:1::1"}},
 	}
 	b, err := json.Marshal(&payload)
 	if err != nil {
-		t.Error(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	ctx := context.Background()
@@ -74,22 +73,27 @@ func TestDirectCheckHandler(t *testing.T) {
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, ts.URL, bytes.NewBuffer(b))
 	if err != nil {
-		t.Error(err.Error())
+		t.Fatal(err.Error())
 	}
 	res, err := ts.Client().Do(req)
 	if err != nil {
 		t.Error(err.Error())
 	}
 
-	// debug
+	// should be one error
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		t.Error(err.Error())
+		t.Fatal(err.Error())
 	}
 	res.Body.Close()
-	fmt.Printf("%s", body)
+	var respPayload []directRespPayloadItem
+	err = json.Unmarshal(body, &respPayload)
 	if err != nil {
-		t.Error(err.Error())
+		t.Fatal(err.Error())
+	}
+
+	if len(respPayload) != 1 {
+		t.Errorf("one address should fail: %v", respPayload)
 	}
 
 }

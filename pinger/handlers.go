@@ -146,13 +146,8 @@ func directCheck(w http.ResponseWriter, r *http.Request, port int) {
 	r.Body.Close()
 
 	queue := make(chan directRespPayloadItem, reqBound)
-	count := 0
-	var mu sync.Mutex
-	var wg sync.WaitGroup
 
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
 		for _, reqItem := range payload {
 			for _, a := range reqItem.Addrs {
 				v := directRespPayloadItem{
@@ -160,31 +155,33 @@ func directCheck(w http.ResponseWriter, r *http.Request, port int) {
 					DstHost: reqItem.Hostname,
 					Addr:    a,
 				}
-				wg.Add(1)
 				queue <- v
-				mu.Lock()
-				count++
-				mu.Unlock()
 			}
 		}
+		close(queue)
 	}()
 
+	var wg sync.WaitGroup
+	wg.Add(reqBound)
 	resc := make(chan directRespPayloadItem)
 	for i := 0; i < reqBound; i++ {
-		go pingDirect(queue, resc, port)
+		go func() {
+			pingDirect(queue, resc, port)
+			wg.Done()
+		}()
 	}
 
-	directRespPayload := make([]directRespPayloadItem, 0)
 	go func() {
-		res := <-resc
+		wg.Wait()
+		close(resc)
+	}()
+
+	directRespPayload := make([]directRespPayloadItem, 0)
+	for res := range resc {
 		if res.Error != "" {
 			directRespPayload = append(directRespPayload, res)
 		}
-		wg.Done()
-	}()
-
-	wg.Wait()
-	close(queue)
+	}
 
 	b, err := json.Marshal(directRespPayload)
 	if err != nil {
