@@ -27,7 +27,7 @@ func main() {
 		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file; KUBECONFIG overrides this")
 	}
 	manifest := flag.String("manifest", "manifest.yaml", "deploy pinger manifest: deployment, service, ingress")
-	ns := flag.String("namespace", "default", "kubernetes namespace")
+	namespace := flag.String("namespace", "default", "kubernetes namespace")
 	flag.Parse()
 
 	if kubeconfigEnv := os.Getenv("KUBECONFIG"); kubeconfigEnv != "" {
@@ -58,16 +58,22 @@ func main() {
 	}
 
 	ctx := context.Background()
-	namespace := *ns
+	ns := *namespace
 
-	_, err = clientset.AppsV1().Deployments(namespace).Create(ctx, &deployment, metav1.CreateOptions{})
+	_, err = clientset.AppsV1().Deployments(ns).Create(ctx, &deployment, metav1.CreateOptions{})
 	must(err, "create deployment")
 
-	_, err = clientset.CoreV1().Services(namespace).Create(ctx, &service, metav1.CreateOptions{})
+	_, err = clientset.CoreV1().Services(ns).Create(ctx, &service, metav1.CreateOptions{})
 	must(err, "create service")
 
-	_, err = clientset.NetworkingV1().Ingresses(namespace).Create(ctx, &ingress, metav1.CreateOptions{})
+	_, err = clientset.NetworkingV1().Ingresses(ns).Create(ctx, &ingress, metav1.CreateOptions{})
 	must(err, "create ingress")
+
+	// TODO wait for all pods ready
+
+	// TODO run svc check
+
+	// TODO run pod-to-pod check
 }
 
 func must(err error, msg string) {
