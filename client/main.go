@@ -35,7 +35,10 @@ func main() {
 	}
 	manifest := flag.String("manifest", "manifest.yaml", "deploy pinger manifest: deployment, service, ingress")
 	namespace := flag.String("namespace", "default", "kubernetes namespace")
+	numReplicas := flag.Int("replicas", 2, "a number of replicas")
 	flag.Parse()
+
+	replicas := int32(*numReplicas)
 
 	if kubeconfigEnv := os.Getenv("KUBECONFIG"); kubeconfigEnv != "" {
 		kubeconfig = &kubeconfigEnv
@@ -57,6 +60,7 @@ func main() {
 	decoder := yaml.NewYAMLOrJSONDecoder(y, 4096)
 	err = decoder.Decode(&deployment)
 	must(err, "yaml decode deployment")
+	deployment.Spec.Replicas = &replicas
 	err = decoder.Decode(&service)
 	must(err, "yaml decode service")
 	err = decoder.Decode(&ingress)
@@ -82,7 +86,6 @@ func main() {
 	// wait for all pods ready
 	podSelector := labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels)
 	deploymentSelector := labels.SelectorFromSet(deployment.ObjectMeta.Labels)
-	replicas := *deployment.Spec.Replicas
 	waitController := make(chan struct{})
 	controller := &controller{deploymentSelector, replicas, waitController}
 
@@ -121,7 +124,7 @@ func main() {
 	svcName := service.ObjectMeta.Name
 	svcPort := service.Spec.Ports[len(service.Spec.Ports)-1].Port
 	svcURL := fmt.Sprintf("http://%s:%d", svcName, svcPort)
-	svcPayload := model.SvcReqPayload{SvcURL: svcURL, Count: int(3 * replicas)}
+	svcPayload := model.SvcReqPayload{SvcURL: svcURL, Count: int(100 * replicas)}
 
 	// TODO collect ingress info
 	ingressURL := "http://localhost:9080" // KIND ingress

@@ -28,7 +28,8 @@ func (c *controller) addDeploymentHandler(obj interface{}) {
 		return
 	}
 	if deployment.Status.AvailableReplicas == c.replicas {
-		log.Println("All pods in the deployment are ready")
+		log.Printf("All pods %d/%d in the deployment are ready",
+			deployment.Status.AvailableReplicas, c.replicas)
 		close(c.waitReady)
 	} else {
 		log.Printf("Pods are starting up: %d/%d in the deployment are ready",
@@ -41,5 +42,5 @@ func (c *controller) updateDeploymentHandler(oldObj, newObj interface{}) {
 }
 
 func (c *controller) deleteDeploymentHandler(obj interface{}) {
-	log.Println("Not implemented")
+	log.Println("Deployment has been deleted")
 }
