@@ -38,6 +38,7 @@ func main() {
 	numReplicas := flag.Int("replicas", 2, "a number of replicas")
 	flag.Parse()
 
+	ns := *namespace
 	replicas := int32(*numReplicas)
 
 	if kubeconfigEnv := os.Getenv("KUBECONFIG"); kubeconfigEnv != "" {
@@ -68,11 +69,7 @@ func main() {
 		must(err, "yaml decode ingress")
 	}
 
-	// TODO context with timeout
 	ctx := context.Background()
-	// ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
-	// defer cancel()
-	ns := *namespace
 
 	_, err = clientset.AppsV1().Deployments(ns).Create(ctx, &deployment, metav1.CreateOptions{})
 	must(err, "create deployment")
