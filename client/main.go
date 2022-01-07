@@ -121,7 +121,7 @@ func main() {
 	svcName := service.ObjectMeta.Name
 	svcPort := service.Spec.Ports[len(service.Spec.Ports)-1].Port
 	svcURL := fmt.Sprintf("http://%s:%d/ping", svcName, svcPort)
-	svcPayload := model.SvcReqPayload{SvcURL: svcURL, Count: int(100 * replicas)}
+	svcPayload := model.SvcReqPayload{SvcURL: svcURL, Count: int(10 * replicas)}
 
 	// TODO collect ingress info
 	ingressURL := "http://localhost:9080" // KIND ingress
@@ -132,7 +132,7 @@ func main() {
 	checker := NewChecker()
 	ingressHealthz := fmt.Sprintf("%s/ping", ingressURL)
 	quit := make(chan struct{})
-	go checker.waitIngress(ingressHealthz, quit)
+	go checker.waitIngress(ingressHealthz, quit, 3)
 	select {
 	case <-quit:
 		log.Println("Ingress is ready. Starting check.")

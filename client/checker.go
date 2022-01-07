@@ -19,7 +19,7 @@ type Checker struct {
 }
 
 func NewChecker() *Checker {
-	return &Checker{http.Client{Timeout: 5 * time.Second}}
+	return &Checker{http.Client{Timeout: 10 * time.Second}}
 }
 
 func (c *Checker) Svc(url string, payload *model.SvcReqPayload) error {
@@ -84,20 +84,24 @@ func (c *Checker) Direct(url string, payload []model.DirectReqPayloadItem) error
 	return nil
 }
 
-func (c *Checker) waitIngress(url string, quit chan<- struct{}) {
+func (c *Checker) waitIngress(url string, quit chan<- struct{}, minReady int) {
+	succ := 0
 	for {
-		time.Sleep(time.Second)
+		time.Sleep(3 * time.Second)
 		resp, err := c.Get(url)
 		if err != nil {
 			log.Printf("[WARN] ingress healthz: %s", err)
 			continue
 		}
-		defer resp.Body.Close()
+		resp.Body.Close()
 		if resp.StatusCode > 299 {
 			log.Printf("[WARN] ingress healthz: response failed with status code %d", resp.StatusCode)
 			continue
 		}
-		break
+		succ++
+		if succ >= minReady {
+			break
+		}
 	}
 	close(quit)
 }
