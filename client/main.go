@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"k8s.io/client-go/informers"
@@ -125,14 +126,43 @@ func main() {
 	// TODO collect ingress info
 	ingressURL := "http://localhost:9080" // KIND ingress
 
-	// run svc check
-	_, _ = svcPayload, ingressURL
+	// run svc and pod-to-pod checks
+	checker := NewChecker()
+	errc := make(chan error)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		errc <- checker.Svc(ingressURL, &svcPayload)
+		wg.Done()
+	}()
+	go func() {
+		errc <- checker.Direct(ingressURL, directPayload)
+		wg.Done()
+	}()
 
-	// run pod-to-pod check
+	go func() {
+		wg.Wait()
+		close(errc)
+	}()
+
+	for err := range errc {
+		logErr(err, "net check")
+	}
+
+	// tear down
+	logErr(clientset.NetworkingV1().Ingresses(ns).Delete(ctx, ingress.ObjectMeta.Name, metav1.DeleteOptions{}), "ingress")
+	logErr(clientset.CoreV1().Services(ns).Delete(ctx, service.ObjectMeta.Name, metav1.DeleteOptions{}), "service")
+	logErr(clientset.AppsV1().Deployments(ns).Delete(ctx, deployment.ObjectMeta.Name, metav1.DeleteOptions{}), "deployment")
 }
 
 func must(err error, msg string) {
 	if err != nil {
 		log.Fatalf("%s: %s", msg, err)
+	}
+}
+
+func logErr(err error, prefix string) {
+	if err != nil {
+		log.Printf("[ERROR] %s: %s\n", prefix, err.Error())
 	}
 }
