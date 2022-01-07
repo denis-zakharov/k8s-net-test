@@ -12,7 +12,7 @@ import (
 const reqBound = 1000
 
 var hc = http.Client{
-	Timeout: 1 * time.Second,
+	Timeout: 5 * time.Second,
 	Transport: &http.Transport{
 		DisableKeepAlives: true,
 	},
