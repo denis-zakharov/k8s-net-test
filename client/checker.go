@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -31,12 +32,18 @@ func (c *Checker) Svc(url string, payload *model.SvcReqPayload) error {
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode > 299 {
+		return fmt.Errorf("doGet: response failed with status code %d", resp.StatusCode)
+	}
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
 	var respPayload model.SvcRespPayload
-	json.Unmarshal(data, &respPayload)
+	err = json.Unmarshal(data, &respPayload)
+	if err != nil {
+		return err
+	}
 	if respPayload.Errors > 0 {
 		log.Printf("svc check error: %#+v\n", respPayload)
 		return nil
@@ -56,12 +63,18 @@ func (c *Checker) Direct(url string, payload []model.DirectReqPayloadItem) error
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode > 299 {
+		return fmt.Errorf("doGet: response failed with status code %d", resp.StatusCode)
+	}
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
 	var respPayload []model.DirectRespPayloadItem
-	json.Unmarshal(data, &respPayload)
+	err = json.Unmarshal(data, &respPayload)
+	if err != nil {
+		return err
+	}
 	if len(respPayload) > 0 {
 		log.Printf("direct check error: %#+v\n", respPayload)
 		return nil
