@@ -120,7 +120,7 @@ func main() {
 	// create a payload for /svc handler
 	svcName := service.ObjectMeta.Name
 	svcPort := service.Spec.Ports[len(service.Spec.Ports)-1].Port
-	svcURL := fmt.Sprintf("http://%s:%d/svc", svcName, svcPort)
+	svcURL := fmt.Sprintf("http://%s:%d/ping", svcName, svcPort)
 	svcPayload := model.SvcReqPayload{SvcURL: svcURL, Count: int(100 * replicas)}
 
 	// TODO collect ingress info
