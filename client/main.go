@@ -128,8 +128,19 @@ func main() {
 	ingressSvc := fmt.Sprintf("%s/svc", ingressURL)
 	ingressDirect := fmt.Sprintf("%s/direct", ingressURL)
 
-	// run svc and pod-to-pod checks
+	// verify ingress controller updated endpoints
 	checker := NewChecker()
+	ingressHealthz := fmt.Sprintf("%s/ping", ingressURL)
+	quit := make(chan struct{})
+	go checker.waitIngress(ingressHealthz, quit)
+	select {
+	case <-quit:
+		log.Println("Ingress is ready. Starting check.")
+	case <-time.After(30 * time.Second):
+		log.Fatal("[ERROR] Ingress is not ready withing 30 seconds. Exiting...")
+	}
+
+	// run svc and pod-to-pod checks
 	errc := make(chan error)
 	var wg sync.WaitGroup
 	wg.Add(2)

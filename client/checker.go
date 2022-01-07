@@ -83,3 +83,21 @@ func (c *Checker) Direct(url string, payload []model.DirectReqPayloadItem) error
 	log.Printf("direct check: OK")
 	return nil
 }
+
+func (c *Checker) waitIngress(url string, quit chan<- struct{}) {
+	for {
+		time.Sleep(time.Second)
+		resp, err := c.Get(url)
+		if err != nil {
+			log.Printf("[WARN] ingress healthz: %s", err)
+			continue
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode > 299 {
+			log.Printf("[WARN] ingress healthz: response failed with status code %d", resp.StatusCode)
+			continue
+		}
+		break
+	}
+	close(quit)
+}
