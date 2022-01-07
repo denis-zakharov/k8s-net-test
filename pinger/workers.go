@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/denis-zakharov/k8s-net-test/model"
 	"net/http"
 	"strings"
 	"time"
@@ -31,7 +32,7 @@ func pingSvc(url string, queue <-chan struct{}, errc chan<- error) {
 	}
 }
 
-func pingDirect(queue <-chan directRespPayloadItem, resc chan<- directRespPayloadItem, port int) {
+func pingDirect(queue <-chan model.DirectRespPayloadItem, resc chan<- model.DirectRespPayloadItem, port int) {
 	for v := range queue {
 		a := v.Addr
 		var url string

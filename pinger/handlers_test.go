@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/denis-zakharov/k8s-net-test/model"
 )
 
 func newLocalListener() (net.Listener, error) {
@@ -66,8 +68,8 @@ func TestDirectCheckHandler(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(directCheckWrapper(port)))
 	defer ts.Close()
 
-	payload := []directReqPayloadItem{
-		{"localhost", []string{"127.0.0.1", "::1", "f:a:i:1::1"}},
+	payload := []model.DirectReqPayloadItem{
+		{Hostname: "localhost", Addrs: []string{"127.0.0.1", "::1", "f:a:i:1::1"}},
 	}
 	b, err := json.Marshal(&payload)
 	if err != nil {
@@ -93,7 +95,7 @@ func TestDirectCheckHandler(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	res.Body.Close()
-	var respPayload []directRespPayloadItem
+	var respPayload []model.DirectRespPayloadItem
 	err = json.Unmarshal(body, &respPayload)
 	if err != nil {
 		t.Fatal(err.Error())
@@ -113,7 +115,7 @@ func TestSvcHandler(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(svcCheck))
 	defer ts.Close()
 
-	payload := svcReqPayload{respTS.URL, 100}
+	payload := model.SvcReqPayload{SvcURL: respTS.URL, Count: 100}
 	b, err := json.Marshal(&payload)
 	if err != nil {
 		t.Fatal(err.Error())
@@ -138,7 +140,7 @@ func TestSvcHandler(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	res.Body.Close()
-	var respPayload svcRespPayload
+	var respPayload model.SvcRespPayload
 	err = json.Unmarshal(body, &respPayload)
 	if err != nil {
 		t.Fatal(err.Error())

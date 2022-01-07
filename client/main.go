@@ -7,8 +7,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
@@ -16,6 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
@@ -57,7 +61,10 @@ func main() {
 		must(err, "yaml decode ingress")
 	}
 
+	// TODO context with timeout
 	ctx := context.Background()
+	// ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+	// defer cancel()
 	ns := *namespace
 
 	_, err = clientset.AppsV1().Deployments(ns).Create(ctx, &deployment, metav1.CreateOptions{})
@@ -69,7 +76,35 @@ func main() {
 	_, err = clientset.NetworkingV1().Ingresses(ns).Create(ctx, &ingress, metav1.CreateOptions{})
 	must(err, "create ingress")
 
-	// TODO wait for all pods ready
+	// wait for all pods ready
+	podSelector := labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels)
+	deploymentSelector := labels.SelectorFromSet(deployment.ObjectMeta.Labels)
+	replicas := *deployment.Spec.Replicas
+	waitController := make(chan struct{})
+	controller := &controller{deploymentSelector, replicas, waitController}
+
+	informerFactory := informers.NewSharedInformerFactory(clientset, 10*time.Minute)
+	deploymentInformer := informerFactory.Apps().V1().Deployments()
+	deploymentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.addDeploymentHandler,
+		UpdateFunc: controller.updateDeploymentHandler,
+		DeleteFunc: controller.deleteDeploymentHandler,
+	})
+	waitInformer := make(chan struct{})
+	defer close(waitInformer)
+	informerFactory.Start(waitInformer)
+	informerFactory.WaitForCacheSync(waitInformer)
+
+	<-waitController // pods are ready
+
+	pods, err := clientset.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{LabelSelector: podSelector.String()})
+	if err != nil {
+		must(err, "cannot find test pods")
+	}
+	for range pods.Items {
+		// name := pod.ObjectMeta.Name
+		// podIPs := pod.Status.PodIPs
+	}
 
 	// TODO run svc check
 

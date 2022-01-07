@@ -1,21 +1,21 @@
-package main
+package model
 
-type svcReqPayload struct {
+type SvcReqPayload struct {
 	SvcURL string `json:"svcURL"`
 	Count  int    `json:"count"`
 }
 
-type svcRespPayload struct {
+type SvcRespPayload struct {
 	SrcHost string `json:"srcHost"`
 	Errors  int    `json:"errors"`
 }
 
-type directReqPayloadItem struct {
+type DirectReqPayloadItem struct {
 	Hostname string   `json:"hostname"`
 	Addrs    []string `json:"addrs"`
 }
 
-type directRespPayloadItem struct {
+type DirectRespPayloadItem struct {
 	SrcHost string `json:"srcHost"`
 	DstHost string `json:"dstHost"`
 	Addr    string `json:"addr"`

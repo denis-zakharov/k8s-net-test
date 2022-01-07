@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"sync"
+
+	"github.com/denis-zakharov/k8s-net-test/model"
 )
 
 var (
@@ -63,7 +65,7 @@ func svcCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var reqPayload svcReqPayload
+	var reqPayload model.SvcReqPayload
 	err := json.NewDecoder(r.Body).Decode(&reqPayload)
 	if err != nil {
 		http.Error(w, "Decode Failed", http.StatusBadRequest)
@@ -107,7 +109,7 @@ func svcCheck(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	respPayload := svcRespPayload{
+	respPayload := model.SvcRespPayload{
 		SrcHost: hostName,
 		Errors:  errCount,
 	}
@@ -134,7 +136,7 @@ func directCheck(w http.ResponseWriter, r *http.Request, port int) {
 		return
 	}
 
-	var payload []directReqPayloadItem
+	var payload []model.DirectReqPayloadItem
 	err := json.NewDecoder(r.Body).Decode(&payload)
 	if err != nil {
 		http.Error(w, "Decode Failed", http.StatusBadRequest)
@@ -142,12 +144,12 @@ func directCheck(w http.ResponseWriter, r *http.Request, port int) {
 	}
 	r.Body.Close()
 
-	queue := make(chan directRespPayloadItem, reqBound)
+	queue := make(chan model.DirectRespPayloadItem, reqBound)
 
 	go func() {
 		for _, reqItem := range payload {
 			for _, a := range reqItem.Addrs {
-				v := directRespPayloadItem{
+				v := model.DirectRespPayloadItem{
 					SrcHost: hostName,
 					DstHost: reqItem.Hostname,
 					Addr:    a,
@@ -160,7 +162,7 @@ func directCheck(w http.ResponseWriter, r *http.Request, port int) {
 
 	var wg sync.WaitGroup
 	wg.Add(reqBound)
-	resc := make(chan directRespPayloadItem)
+	resc := make(chan model.DirectRespPayloadItem)
 	for i := 0; i < reqBound; i++ {
 		go func() {
 			pingDirect(queue, resc, port)
@@ -173,7 +175,7 @@ func directCheck(w http.ResponseWriter, r *http.Request, port int) {
 		close(resc)
 	}()
 
-	directRespPayload := make([]directRespPayloadItem, 0)
+	directRespPayload := make([]model.DirectRespPayloadItem, 0)
 	for res := range resc {
 		if res.Error != "" {
 			directRespPayload = append(directRespPayload, res)
