@@ -1,12 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 )
 
 type controller struct {
@@ -15,18 +13,32 @@ type controller struct {
 	waitReady chan struct{}
 }
 
-func (c *controller) addDeploymentHandler(obj interface{}) {
+func (c *controller) decodeDeployment(obj interface{}) (*appsv1.Deployment, bool) {
 	var deployment *appsv1.Deployment
 	var ok bool
 	if deployment, ok = obj.(*appsv1.Deployment); !ok {
-		utilruntime.HandleError(fmt.Errorf("error decoding deployment, invalid type"))
+		return nil, false
+	}
+
+	ls := labels.Set(deployment.ObjectMeta.Labels)
+	if !c.selector.Matches(ls) {
+		return nil, false
+	}
+	return deployment, true
+}
+
+func (c *controller) addDeploymentHandler(obj interface{}) {
+	if deployment, ok := c.decodeDeployment(obj); ok {
+		log.Printf("Deployment %s has beed created", deployment.ObjectMeta.Name)
+	}
+}
+
+func (c *controller) updateDeploymentHandler(oldObj, newObj interface{}) {
+	deployment, ok := c.decodeDeployment(newObj)
+	if !ok {
 		return
 	}
 
-	ls := labels.Set(deployment.GetObjectMeta().GetLabels())
-	if !c.selector.Matches(ls) {
-		return
-	}
 	if deployment.Status.AvailableReplicas == c.replicas {
 		log.Printf("All pods %d/%d in the deployment are ready",
 			deployment.Status.AvailableReplicas, c.replicas)
@@ -37,10 +49,8 @@ func (c *controller) addDeploymentHandler(obj interface{}) {
 	}
 }
 
-func (c *controller) updateDeploymentHandler(oldObj, newObj interface{}) {
-	c.addDeploymentHandler(newObj)
-}
-
 func (c *controller) deleteDeploymentHandler(obj interface{}) {
-	log.Println("Deployment has been deleted")
+	if deployment, ok := c.decodeDeployment(obj); ok {
+		log.Printf("Deployment %s has beed deleted", deployment.ObjectMeta.Name)
+	}
 }
