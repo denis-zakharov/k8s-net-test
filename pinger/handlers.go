@@ -102,8 +102,8 @@ func svcCheck(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	errCount := 0
-	for e := range errc {
-		if e != nil {
+	for err := range errc {
+		if err != nil {
 			errCount++
 			log.Printf("[SVC ERROR] %s", err.Error())
 		}
