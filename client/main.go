@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
+	"github.com/denis-zakharov/k8s-net-test/model"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -97,18 +99,36 @@ func main() {
 
 	<-waitController // pods are ready
 
+	// create a payload for /direct handler
 	pods, err := clientset.CoreV1().Pods(ns).List(ctx, metav1.ListOptions{LabelSelector: podSelector.String()})
 	if err != nil {
 		must(err, "cannot find test pods")
 	}
-	for range pods.Items {
-		// name := pod.ObjectMeta.Name
-		// podIPs := pod.Status.PodIPs
+	directPayload := make([]model.DirectReqPayloadItem, len(pods.Items))
+	for i, pod := range pods.Items {
+		name := pod.ObjectMeta.Name
+		directPayload[i].Hostname = name
+		podIPs := pod.Status.PodIPs
+		addrs := make([]string, len(podIPs))
+		for i, ip := range podIPs {
+			addrs[i] = ip.IP
+		}
+		directPayload[i].Addrs = addrs
 	}
 
-	// TODO run svc check
+	// create a payload for /svc handler
+	svcName := service.ObjectMeta.Name
+	svcPort := service.Spec.Ports[len(service.Spec.Ports)-1].Port
+	svcURL := fmt.Sprintf("http://%s:%d", svcName, svcPort)
+	svcPayload := model.SvcReqPayload{SvcURL: svcURL, Count: int(3 * replicas)}
 
-	// TODO run pod-to-pod check
+	// TODO collect ingress info
+	ingressURL := "http://localhost:9080" // KIND ingress
+
+	// run svc check
+	_, _ = svcPayload, ingressURL
+
+	// run pod-to-pod check
 }
 
 func must(err error, msg string) {
