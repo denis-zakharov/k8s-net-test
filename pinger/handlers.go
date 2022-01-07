@@ -26,7 +26,6 @@ func init() {
 	var localAddrs []string
 	for _, a := range addrs {
 		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() && !ipnet.IP.IsLinkLocalUnicast() {
-			//ipnet.IP.To16() != nil for ipv6
 			localAddrs = append(localAddrs, ipnet.IP.String())
 		}
 	}

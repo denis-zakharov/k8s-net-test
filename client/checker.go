@@ -41,6 +41,7 @@ func (c *Checker) Svc(url string, payload *model.SvcReqPayload) error {
 		log.Printf("svc check error: %#+v\n", respPayload)
 		return nil
 	}
+	log.Printf("svc check: %#+v", respPayload)
 	log.Printf("svc check: OK")
 	return nil
 }
@@ -65,6 +66,7 @@ func (c *Checker) Direct(url string, payload []model.DirectReqPayloadItem) error
 		log.Printf("direct check error: %#+v\n", respPayload)
 		return nil
 	}
+	log.Printf("direct check: %#+v", respPayload)
 	log.Printf("direct check: OK")
 	return nil
 }

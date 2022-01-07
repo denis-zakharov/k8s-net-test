@@ -22,8 +22,8 @@ spec:
               protocol: TCP
           resources:
             limits:
-              cpu: 100m
-              memory: 32Mi
+              cpu: 200m
+              memory: 64Mi
           livenessProbe:
             httpGet:
               path: /healthz

@@ -2,16 +2,20 @@ package main
 
 import (
 	"fmt"
-	"github.com/denis-zakharov/k8s-net-test/model"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/denis-zakharov/k8s-net-test/model"
 )
 
 const reqBound = 1000
 
 var hc = http.Client{
 	Timeout: 1 * time.Second,
+	Transport: &http.Transport{
+		DisableKeepAlives: true,
+	},
 }
 
 func doGet(url string) error {

@@ -120,11 +120,13 @@ func main() {
 	// create a payload for /svc handler
 	svcName := service.ObjectMeta.Name
 	svcPort := service.Spec.Ports[len(service.Spec.Ports)-1].Port
-	svcURL := fmt.Sprintf("http://%s:%d", svcName, svcPort)
+	svcURL := fmt.Sprintf("http://%s:%d/svc", svcName, svcPort)
 	svcPayload := model.SvcReqPayload{SvcURL: svcURL, Count: int(100 * replicas)}
 
 	// TODO collect ingress info
 	ingressURL := "http://localhost:9080" // KIND ingress
+	ingressSvc := fmt.Sprintf("%s/svc", ingressURL)
+	ingressDirect := fmt.Sprintf("%s/direct", ingressURL)
 
 	// run svc and pod-to-pod checks
 	checker := NewChecker()
@@ -132,11 +134,11 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		errc <- checker.Svc(ingressURL, &svcPayload)
+		errc <- checker.Svc(ingressSvc, &svcPayload)
 		wg.Done()
 	}()
 	go func() {
-		errc <- checker.Direct(ingressURL, directPayload)
+		errc <- checker.Direct(ingressDirect, directPayload)
 		wg.Done()
 	}()
 
