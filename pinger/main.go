@@ -30,5 +30,6 @@ func main() {
 	http.HandleFunc("/svc", svcCheck)
 	http.HandleFunc("/direct", directCheckWrapper(*port))
 	listAddr := fmt.Sprintf(":%d", *port)
+	log.Printf("Starting http server on %s\n", listAddr)
 	log.Fatal(http.ListenAndServe(listAddr, nil))
 }

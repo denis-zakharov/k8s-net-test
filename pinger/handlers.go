@@ -39,6 +39,7 @@ func init() {
 	if err != nil {
 		log.Fatal("Cannot serialize hostname-addrs map to JSON")
 	}
+	log.Printf("Host info initialized: %v\n", instance)
 }
 
 func jsonify(w http.ResponseWriter, payload []byte, status int) {
@@ -59,6 +60,7 @@ func ping(w http.ResponseWriter, r *http.Request) {
 
 // svcCheck verifies k8s service
 func svcCheck(w http.ResponseWriter, r *http.Request) {
+	log.Println("Accepted svcCheck")
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST method is required", http.StatusMethodNotAllowed)
 		return
@@ -130,6 +132,7 @@ func directCheckWrapper(port int) func(w http.ResponseWriter, r *http.Request) {
 
 // directCheck verifies pod-to-pod requests
 func directCheck(w http.ResponseWriter, r *http.Request, port int) {
+	log.Println("Accepted directCheck")
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST method is required", http.StatusMethodNotAllowed)
 		return
